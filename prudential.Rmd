@@ -1,0 +1,49 @@
+---
+title: "prudential"
+output: html_document
+---
+
+First look at kaggle comp.
+
+Linear Discrimunant analysis
+
+```{r}
+setwd("/kaggle/prudential")
+train.data <- read.csv("train/train.csv", sep =",", stringsAsFactors = T)
+
+require(MASS)
+require(ggplot2)
+require(scales)
+require(gridExtra)
+
+pca.data <- train.data[,-grep("Medical_History_32|Medical_History_24|Medical_History_15|Medical_History_10|Medical_History_1|Family_Hist_5|Family_Hist_4|Family_Hist_3|Family_Hist_2|Insurance_History_5|Product_Info_2", colnames(train.data))]
+
+pca.data<-pca.data[complete.cases(pca.data),]
+pca.data$Response <- as.factor(pca.data$Response)
+pca.data$Response_grouped <- as.factor(pca.data$Response)
+pca <- prcomp(pca.data[,-grep("Response", colnames(pca.data))], center = TRUE,  scale = TRUE) 
+
+prop.pca = pca$sdev^2/sum(pca$sdev^2)
+
+lda <- lda(Response ~ .,    pca.data[,-grep("Id", colnames(pca.data))])
+sort(abs(coef(lda)[,1]))
+prop.lda = lda$svd^2/sum(lda$svd^2)
+
+plda <- predict(object = lda,   newdata = pca.data)
+table(Original =pca.data$Response, Predicted =  plda$class)
+prop.table(table(pca.data$Response==plda$class))
+
+dataset = data.frame(Response = pca.data$Response, pca = pca$x, lda = plda$x)
+
+p1 <- ggplot(dataset) + geom_point(aes(lda.LD1, lda.LD2, colour = Response, shape = Response), size = 2.5) + 
+  labs(x = paste("LD1 (", percent(prop.lda[1]), ")", sep=""),
+       y = paste("LD2 (", percent(prop.lda[2]), ")", sep=""))#+xlim(0,15) +ylim(0,10)
+
+p2 <- ggplot(dataset) + geom_point(aes(pca.PC1, pca.PC2, colour = Response, shape = Response), size = 2.5) +
+  labs(x = paste("PC1 (", percent(prop.pca[1]), ")", sep=""),
+       y = paste("PC2 (", percent(prop.pca[2]), ")", sep=""))
+
+grid.arrange(p1, p2)
+
+
+```
